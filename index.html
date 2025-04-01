@@ -18,12 +18,27 @@
     }
     .angle-display {
       font-size: 18px;
+      margin-top: 10px;
     }
-    #startButton {
+    #startButton, #exportButton {
       padding: 10px 20px;
       font-size: 16px;
-      margin-top: 20px;
+      margin: 10px;
       cursor: pointer;
+    }
+    #status {
+      font-weight: bold;
+      margin-top: 20px;
+      color: #333;
+    }
+    #chartContainer {
+      width: 90%;
+      max-width: 800px;
+      margin: 30px auto;
+      background: white;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
   </style>
 </head>
@@ -32,6 +47,7 @@
   <p>Tap the button and tilt your phone to see the cube rotate in 3D!</p>
 
   <button id="startButton">Start Capturing Sensor Data</button>
+  <button id="exportButton" style="display:none">Export Data (CSV)</button>
 
   <div class="angle-display">
     <div>Alpha (Yaw/Z): <span id="alpha">0</span>°</div>
@@ -39,11 +55,21 @@
     <div>Gamma (Roll/Y): <span id="gamma">0</span>°</div>
   </div>
 
+  <div id="status">Status: --</div>
+
   <canvas id="threeCanvas"></canvas>
 
+  <div id="chartContainer">
+    <canvas id="imuChart" height="300"></canvas>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     let scene, camera, renderer, cube;
+    let chart, imuData = [];
+    const smoothingWindow = 5;
+    const alphaHistory = [], betaHistory = [], gammaHistory = [];
 
     function initThree() {
       const canvas = document.getElementById('threeCanvas');
@@ -69,50 +95,136 @@
       animate();
     }
 
+    function initChart() {
+      const ctx = document.getElementById('imuChart').getContext('2d');
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'Alpha (Yaw)',
+              borderColor: 'red',
+              data: [],
+              fill: false,
+            },
+            {
+              label: 'Beta (Pitch)',
+              borderColor: 'green',
+              data: [],
+              fill: false,
+            },
+            {
+              label: 'Gamma (Roll)',
+              borderColor: 'blue',
+              data: [],
+              fill: false,
+            },
+          ],
+        },
+        options: {
+          animation: false,
+          scales: {
+            x: { display: false },
+            y: { suggestedMin: -180, suggestedMax: 180 }
+          }
+        }
+      });
+    }
+
+    function smooth(dataArray, newValue) {
+      if (dataArray.length >= smoothingWindow) {
+        dataArray.shift();
+      }
+      dataArray.push(newValue);
+      const sum = dataArray.reduce((a, b) => a + b, 0);
+      return sum / dataArray.length;
+    }
+
+    function classifyOrientation(beta, gamma) {
+      const status = document.getElementById('status');
+      if (Math.abs(beta) < 10 && Math.abs(gamma) < 10) {
+        status.textContent = "Status: Flat (Stable)";
+      } else if (Math.abs(beta) > 60) {
+        status.textContent = "Status: Tilted Forward/Backward";
+      } else if (Math.abs(gamma) > 60) {
+        status.textContent = "Status: Tilted Sideways";
+      } else {
+        status.textContent = "Status: Dynamic Orientation";
+      }
+    }
+
     function handleOrientation(event) {
-      const alpha = event.alpha || 0;
-      const beta = event.beta || 0;
-      const gamma = event.gamma || 0;
+      const rawAlpha = event.alpha || 0;
+      const rawBeta = event.beta || 0;
+      const rawGamma = event.gamma || 0;
+
+      const alpha = smooth(alphaHistory, rawAlpha);
+      const beta = smooth(betaHistory, rawBeta);
+      const gamma = smooth(gammaHistory, rawGamma);
 
       document.getElementById('alpha').textContent = alpha.toFixed(1);
       document.getElementById('beta').textContent = beta.toFixed(1);
       document.getElementById('gamma').textContent = gamma.toFixed(1);
 
-      // Convert degrees to radians
-      const radAlpha = THREE.MathUtils.degToRad(alpha);
-      const radBeta = THREE.MathUtils.degToRad(beta);
-      const radGamma = THREE.MathUtils.degToRad(gamma);
+      cube.rotation.x = THREE.MathUtils.degToRad(beta);
+      cube.rotation.y = THREE.MathUtils.degToRad(gamma);
+      cube.rotation.z = THREE.MathUtils.degToRad(alpha);
 
-      // Update cube rotation
-      cube.rotation.x = radBeta;
-      cube.rotation.y = radGamma;
-      cube.rotation.z = radAlpha;
+      classifyOrientation(beta, gamma);
+
+      const timestamp = new Date().toISOString();
+      imuData.push({ timestamp, alpha, beta, gamma });
+
+      if (imuData.length > 300) imuData.shift();
+
+      chart.data.labels = imuData.map((_, i) => i);
+      chart.data.datasets[0].data = imuData.map(d => d.alpha);
+      chart.data.datasets[1].data = imuData.map(d => d.beta);
+      chart.data.datasets[2].data = imuData.map(d => d.gamma);
+      chart.update();
     }
 
     function requestAccessAndStart() {
       if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-        // iOS
         DeviceOrientationEvent.requestPermission()
           .then(permissionState => {
             if (permissionState === 'granted') {
               window.addEventListener('deviceorientation', handleOrientation);
-              startButton.style.display = 'none';
+              document.getElementById('startButton').style.display = 'none';
+              document.getElementById('exportButton').style.display = 'inline-block';
+              initThree();
+              initChart();
             } else {
               alert('Permission denied for accessing device orientation');
             }
           })
           .catch(console.error);
       } else {
-        // Android or desktop
         window.addEventListener('deviceorientation', handleOrientation);
-        startButton.style.display = 'none';
+        document.getElementById('startButton').style.display = 'none';
+        document.getElementById('exportButton').style.display = 'inline-block';
+        initThree();
+        initChart();
       }
     }
 
-    document.getElementById('startButton').addEventListener('click', () => {
-      initThree();
-      requestAccessAndStart();
-    });
+    function exportCSV() {
+      let csv = 'timestamp,alpha,beta,gamma\n';
+      imuData.forEach(d => {
+        csv += `${d.timestamp},${d.alpha.toFixed(2)},${d.beta.toFixed(2)},${d.gamma.toFixed(2)}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'imu_data.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById('startButton').addEventListener('click', requestAccessAndStart);
+    document.getElementById('exportButton').addEventListener('click', exportCSV);
   </script>
 </body>
 </html>

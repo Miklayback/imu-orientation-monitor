@@ -3,14 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IMU 3D Orientation Visualizer</title>
+  <title>IMU-Based Device Orientation Monitoring Tool</title>
   <style>
     body {
       font-family: sans-serif;
       margin: 0;
       padding: 20px;
-      background: #f0f0f0;
+      background: #f4f4f4;
       text-align: center;
+    }
+    h1 {
+      color: #333;
     }
     canvas {
       display: block;
@@ -29,22 +32,31 @@
     #status {
       font-weight: bold;
       margin-top: 20px;
-      color: #333;
+      color: #222;
     }
     #chartContainer {
       width: 90%;
       max-width: 800px;
       margin: 30px auto;
       background: white;
-      padding: 10px;
+      padding: 15px;
       border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+    #extraStatus {
+      font-size: 16px;
+      margin-top: 10px;
+    }
+    footer {
+      margin-top: 40px;
+      font-size: 14px;
+      color: #777;
     }
   </style>
 </head>
 <body>
-  <h1>🛩️ IMU 3D Orientation Visualizer</h1>
-  <p>Tap the button and tilt your phone to see the cube rotate in 3D!</p>
+  <h1>🛠️ IMU-Based Device Orientation Monitoring Tool</h1>
+  <p>A real-time visualization and motion analysis tool for embedded system testing, inertial navigation, and perception-based interaction.</p>
 
   <button id="startButton">Start Capturing Sensor Data</button>
   <button id="exportButton" style="display:none">Export Data (CSV)</button>
@@ -56,13 +68,17 @@
   </div>
 
   <div id="status">Status: --</div>
-  <div id="extraStatus"></div>
+  <div id="extraStatus">Shake Count: 0 | Flip Count: 0</div>
 
   <canvas id="threeCanvas"></canvas>
 
   <div id="chartContainer">
     <canvas id="imuChart" height="300"></canvas>
   </div>
+
+  <footer>
+    Built by Guanqi Wang · IMU + JS + Chart.js + Three.js · 2025
+  </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -107,24 +123,9 @@
         data: {
           labels: [],
           datasets: [
-            {
-              label: 'Alpha (Yaw)',
-              borderColor: 'red',
-              data: [],
-              fill: false,
-            },
-            {
-              label: 'Beta (Pitch)',
-              borderColor: 'green',
-              data: [],
-              fill: false,
-            },
-            {
-              label: 'Gamma (Roll)',
-              borderColor: 'blue',
-              data: [],
-              fill: false,
-            },
+            { label: 'Alpha (Yaw)', borderColor: 'red', data: [], fill: false },
+            { label: 'Beta (Pitch)', borderColor: 'green', data: [], fill: false },
+            { label: 'Gamma (Roll)', borderColor: 'blue', data: [], fill: false },
           ],
         },
         options: {
@@ -138,46 +139,29 @@
     }
 
     function smooth(dataArray, newValue) {
-      if (dataArray.length >= smoothingWindow) {
-        dataArray.shift();
-      }
+      if (dataArray.length >= smoothingWindow) dataArray.shift();
       dataArray.push(newValue);
-      const sum = dataArray.reduce((a, b) => a + b, 0);
-      return sum / dataArray.length;
+      return dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
     }
 
     function classifyOrientation(beta, gamma) {
       const status = document.getElementById('status');
-      if (Math.abs(beta) < 10 && Math.abs(gamma) < 10) {
-        status.textContent = "Status: Flat (Stable)";
-      } else if (Math.abs(beta) > 60) {
-        status.textContent = "Status: Tilted Forward/Backward";
-      } else if (Math.abs(gamma) > 60) {
-        status.textContent = "Status: Tilted Sideways";
-      } else {
-        status.textContent = "Status: Dynamic Orientation";
-      }
+      if (Math.abs(beta) < 10 && Math.abs(gamma) < 10) status.textContent = "Status: Flat (Stable)";
+      else if (Math.abs(beta) > 60) status.textContent = "Status: Tilted Forward/Backward";
+      else if (Math.abs(gamma) > 60) status.textContent = "Status: Tilted Sideways";
+      else status.textContent = "Status: Dynamic Orientation";
     }
 
     function detectShake(beta, gamma) {
       const deltaBeta = Math.abs(beta - lastBeta);
       const deltaGamma = Math.abs(gamma - lastGamma);
-
-      if (deltaBeta > shakeThreshold || deltaGamma > shakeThreshold) {
-        shakeCounter++;
-      }
-
+      if (deltaBeta > shakeThreshold || deltaGamma > shakeThreshold) shakeCounter++;
       lastBeta = beta;
       lastGamma = gamma;
-
-      return shakeCounter;
     }
 
     function detectFlip(beta) {
-      if (Math.abs(beta) > 150) {
-        flipCounter++;
-      }
-      return flipCounter;
+      if (Math.abs(beta) > 150) flipCounter++;
     }
 
     function updateExtraStatus() {

@@ -3,7 +3,6 @@
 
 A real-time, browser-based IMU visualization and motion monitoring system for embedded device development, sensor testing, and smart interaction prototyping.
 
-![preview](./preview.png)
 
 ---
 

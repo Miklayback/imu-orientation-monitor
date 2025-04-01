@@ -1,3 +1,4 @@
+// Full updated HTML content with flip/shake bug fix
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -56,7 +57,7 @@
 </head>
 <body>
   <h1>🛠️ IMU-Based Device Orientation Monitoring Tool</h1>
-  <p>A real-time visualization and motion analysis tool for embedded system testing, inertial navigation, and perception-based interaction.</p>
+  <p>A real-time, browser-based IMU visualization and motion monitoring system.</p>
 
   <button id="startButton">Start Capturing Sensor Data</button>
   <button id="exportButton" style="display:none">Export Data (CSV)</button>
@@ -76,9 +77,7 @@
     <canvas id="imuChart" height="300"></canvas>
   </div>
 
-  <footer>
-    Built by Guanqi Wang · IMU + JS + Chart.js + Three.js · 2025
-  </footer>
+  <footer>Built by Guanqi Wang · IMU + JS + Chart.js + Three.js · 2025</footer>
 
   <script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -88,6 +87,8 @@
     let shakeCounter = 0, flipCounter = 0;
     let lastBeta = 0, lastGamma = 0;
     let shakeThreshold = 25;
+    let lastShakeTime = 0;
+    let flipped = false;
 
     const smoothingWindow = 5;
     const alphaHistory = [], betaHistory = [], gammaHistory = [];
@@ -153,15 +154,25 @@
     }
 
     function detectShake(beta, gamma) {
+      const now = Date.now();
       const deltaBeta = Math.abs(beta - lastBeta);
       const deltaGamma = Math.abs(gamma - lastGamma);
-      if (deltaBeta > shakeThreshold || deltaGamma > shakeThreshold) shakeCounter++;
+      if ((deltaBeta > shakeThreshold || deltaGamma > shakeThreshold) && now - lastShakeTime > 500) {
+        shakeCounter++;
+        lastShakeTime = now;
+      }
       lastBeta = beta;
       lastGamma = gamma;
     }
 
     function detectFlip(beta) {
-      if (Math.abs(beta) > 150) flipCounter++;
+      if (!flipped && Math.abs(beta) > 150) {
+        flipCounter++;
+        flipped = true;
+      }
+      if (flipped && Math.abs(beta) < 100) {
+        flipped = false;
+      }
     }
 
     function updateExtraStatus() {

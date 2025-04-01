@@ -56,6 +56,7 @@
   </div>
 
   <div id="status">Status: --</div>
+  <div id="extraStatus"></div>
 
   <canvas id="threeCanvas"></canvas>
 
@@ -68,6 +69,10 @@
   <script>
     let scene, camera, renderer, cube;
     let chart, imuData = [];
+    let shakeCounter = 0, flipCounter = 0;
+    let lastBeta = 0, lastGamma = 0;
+    let shakeThreshold = 25;
+
     const smoothingWindow = 5;
     const alphaHistory = [], betaHistory = [], gammaHistory = [];
 
@@ -154,6 +159,32 @@
       }
     }
 
+    function detectShake(beta, gamma) {
+      const deltaBeta = Math.abs(beta - lastBeta);
+      const deltaGamma = Math.abs(gamma - lastGamma);
+
+      if (deltaBeta > shakeThreshold || deltaGamma > shakeThreshold) {
+        shakeCounter++;
+      }
+
+      lastBeta = beta;
+      lastGamma = gamma;
+
+      return shakeCounter;
+    }
+
+    function detectFlip(beta) {
+      if (Math.abs(beta) > 150) {
+        flipCounter++;
+      }
+      return flipCounter;
+    }
+
+    function updateExtraStatus() {
+      const extraStatus = document.getElementById('extraStatus');
+      extraStatus.innerHTML = `Shake Count: ${shakeCounter} | Flip Count: ${flipCounter}`;
+    }
+
     function handleOrientation(event) {
       const rawAlpha = event.alpha || 0;
       const rawBeta = event.beta || 0;
@@ -172,10 +203,12 @@
       cube.rotation.z = THREE.MathUtils.degToRad(alpha);
 
       classifyOrientation(beta, gamma);
+      detectShake(beta, gamma);
+      detectFlip(beta);
+      updateExtraStatus();
 
       const timestamp = new Date().toISOString();
       imuData.push({ timestamp, alpha, beta, gamma });
-
       if (imuData.length > 300) imuData.shift();
 
       chart.data.labels = imuData.map((_, i) => i);

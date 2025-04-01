@@ -10,18 +10,18 @@ A real-time, browser-based IMU visualization and motion monitoring system for em
 
 ---
 
-## 🎯 Features
+##  Features
 
 -  **3D Orientation Visualization** (via Three.js)
 -  **Real-Time Motion Graphs** (Chart.js)
 -  **Posture Classification**: Flat, Tilted, Dynamic
--  **Shake Detection** & 🔁 **Flip Count**
+-  **Shake Detection** & **Flip Count**
 -  **Export Data as CSV** for analysis
 -  Designed for inertial navigation & IMU-based interaction
 
 ---
 
-## 🔧 Tech Stack
+##  Tech Stack
 
 | Component     | Tech Used          |
 |---------------|--------------------|

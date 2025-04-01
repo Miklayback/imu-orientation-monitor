@@ -19,11 +19,19 @@
       margin-top: 20px;
       font-size: 18px;
     }
+    #startButton {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin-top: 20px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
   <h1>📡 Real-Time IMU Visualization</h1>
   <p>Move or tilt your phone to see the rotation in real-time.</p>
+
+  <button id="startButton">Start Capturing Sensor Data</button>
 
   <div class="angle-display">
     <div>Alpha (Z): <span id="alpha">0</span>°</div>
@@ -38,7 +46,7 @@
     const ctx = canvas.getContext('2d');
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
-
+    const startButton = document.getElementById('startButton');
     const cubeSize = 100;
 
     function drawCube(beta, gamma) {
@@ -56,21 +64,39 @@
       ctx.restore();
     }
 
-    if (window.DeviceOrientationEvent) {
-      window.addEventListener('deviceorientation', (event) => {
-        const alpha = event.alpha.toFixed(1);
-        const beta = event.beta.toFixed(1);
-        const gamma = event.gamma.toFixed(1);
+    function handleOrientation(event) {
+      const alpha = event.alpha.toFixed(1);
+      const beta = event.beta.toFixed(1);
+      const gamma = event.gamma.toFixed(1);
 
-        document.getElementById('alpha').textContent = alpha;
-        document.getElementById('beta').textContent = beta;
-        document.getElementById('gamma').textContent = gamma;
+      document.getElementById('alpha').textContent = alpha;
+      document.getElementById('beta').textContent = beta;
+      document.getElementById('gamma').textContent = gamma;
 
-        drawCube(Number(beta), Number(gamma));
-      });
-    } else {
-      alert("DeviceOrientation not supported on this device.");
+      drawCube(Number(beta), Number(gamma));
     }
+
+    function requestAccessAndStart() {
+      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        // iOS
+        DeviceOrientationEvent.requestPermission()
+          .then(permissionState => {
+            if (permissionState === 'granted') {
+              window.addEventListener('deviceorientation', handleOrientation);
+              startButton.style.display = 'none';
+            } else {
+              alert('Permission denied for accessing device orientation');
+            }
+          })
+          .catch(console.error);
+      } else {
+        // Android or desktop (no permission required)
+        window.addEventListener('deviceorientation', handleOrientation);
+        startButton.style.display = 'none';
+      }
+    }
+
+    startButton.addEventListener('click', requestAccessAndStart);
   </script>
 </body>
 </html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IMU Visualization Dashboard</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f0f0f0;
+      text-align: center;
+    }
+    canvas {
+      margin-top: 20px;
+    }
+    .angle-display {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <h1>📡 Real-Time IMU Visualization</h1>
+  <p>Move or tilt your phone to see the rotation in real-time.</p>
+
+  <div class="angle-display">
+    <div>Alpha (Z): <span id="alpha">0</span>°</div>
+    <div>Beta (X): <span id="beta">0</span>°</div>
+    <div>Gamma (Y): <span id="gamma">0</span>°</div>
+  </div>
+
+  <canvas id="cubeCanvas" width="400" height="400"></canvas>
+
+  <script>
+    const canvas = document.getElementById('cubeCanvas');
+    const ctx = canvas.getContext('2d');
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    const cubeSize = 100;
+
+    function drawCube(beta, gamma) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const tiltX = gamma / 90 * 30;
+      const tiltY = beta / 90 * 30;
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(tiltX * Math.PI / 180);
+      ctx.rotate(tiltY * Math.PI / 180);
+      ctx.fillStyle = '#4a90e2';
+      ctx.fillRect(-cubeSize / 2, -cubeSize / 2, cubeSize, cubeSize);
+      ctx.restore();
+    }
+
+    if (window.DeviceOrientationEvent) {
+      window.addEventListener('deviceorientation', (event) => {
+        const alpha = event.alpha.toFixed(1);
+        const beta = event.beta.toFixed(1);
+        const gamma = event.gamma.toFixed(1);
+
+        document.getElementById('alpha').textContent = alpha;
+        document.getElementById('beta').textContent = beta;
+        document.getElementById('gamma').textContent = gamma;
+
+        drawCube(Number(beta), Number(gamma));
+      });
+    } else {
+      alert("DeviceOrientation not supported on this device.");
+    }
+  </script>
+</body>
+</html>

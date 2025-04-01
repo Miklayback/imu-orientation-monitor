@@ -1,1 +1,1 @@
-# imu-visual-dashboard
+# imu-orientation-monitor
